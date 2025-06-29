@@ -1,0 +1,87 @@
+/* --- 모든 스타일을 담은 final_styles.css --- */
+:root {
+    /* 라이트 모드 (기본) */
+    --bg-color: #f7f7f7; --sidebar-bg: #ffffff; --main-bg: #ffffff; --text-primary: #1a1a1a; --text-secondary: #6b6b6b;
+    --accent-color: #5856D6; --border-color: #e8e8e8; --hover-bg: #f0f0f5; --shadow-color: rgba(0, 0, 0, 0.05);
+    --rank1-color: #D4AF37; --rank2-color: #A9A9A9; --rank3-color: #CD7F32;
+    /* 신호등용 색상 */
+    --signal-green: #30D158; --signal-yellow: #FFD60A; --signal-orange: #FF9F0A;
+}
+body.dark-mode {
+    /* 다크 모드 */
+    --bg-color: #1c1c1e; --sidebar-bg: #2c2c2e; --main-bg: #2c2c2e; --text-primary: #f5f5f7; --text-secondary: #a0a0a5;
+    --accent-color: #6c63ff; --border-color: #3a3a3c; --hover-bg: #3a3a3c; --shadow-color: rgba(0, 0, 0, 0.2);
+}
+
+/* --- 공통 스타일 --- */
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background-color: var(--bg-color); color: var(--text-primary); margin: 0; transition: background-color 0.3s, color 0.3s; }
+
+/* === 전광판 페이지 스타일 === */
+.signal-page-wrapper {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    text-align: center;
+}
+.signal-page-wrapper .container { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 40px; }
+.score-panel h1 { font-size: 120px; font-weight: 700; margin: 0; line-height: 1; text-shadow: 0 0 20px rgba(0,0,0,0.2); }
+.score-panel p { font-size: 32px; font-weight: 400; margin: 10px 0 0 0; opacity: 0.8; }
+.lights-panel { background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 999px; padding: 20px; display: flex; gap: 30px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+.light { width: 150px; height: 150px; border-radius: 50%; background-color: rgba(255, 255, 255, 0.1); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.light.active#light-orange { background-color: var(--signal-orange); box-shadow: 0 0 40px var(--signal-orange); }
+.light.active#light-yellow { background-color: var(--signal-yellow); box-shadow: 0 0 40px var(--signal-yellow); }
+.light.active#light-green { background-color: var(--signal-green); box-shadow: 0 0 40px var(--signal-green); }
+.activity-panel { font-size: 18px; opacity: 0.7; background: rgba(0,0,0,0.2); padding: 8px 20px; border-radius: 12px; }
+
+/* === 대시보드 페이지 스타일 === */
+.dashboard-layout { display: flex; width: 100%; height: 100vh; overflow: hidden; }
+.sidebar { width: 260px; background-color: var(--sidebar-bg); border-right: 1px solid var(--border-color); padding: 24px; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; transition: background-color 0.3s, border-color 0.3s; }
+.sidebar-header { margin-bottom: 30px; }
+.sidebar-header h1 { font-size: 22px; margin: 0 0 5px 0; color: var(--text-primary); }
+.sidebar-header p { font-size: 14px; color: var(--text-secondary); margin: 0; }
+.nav-menu { list-style: none; padding: 0; margin: 0; flex-grow: 1; }
+.nav-item a { display: flex; align-items: center; padding: 12px 16px; border-radius: 8px; text-decoration: none; color: var(--text-secondary); font-weight: 500; margin-bottom: 8px; transition: background-color 0.2s, color 0.2s; }
+.nav-item a:hover { background-color: var(--hover-bg); }
+.nav-item a.active { background-color: var(--accent-color); color: white; }
+.nav-item .icon { margin-right: 12px; width: 20px; height: 20px; fill: currentColor; }
+.sidebar-footer { margin-top: auto; }
+.user-profile { display: flex; align-items: center; padding: 10px; border-radius: 8px; cursor: pointer; }
+.user-profile:hover { background-color: var(--hover-bg); }
+.user-profile .avatar { width: 36px; height: 36px; border-radius: 50%; background-color: var(--accent-color); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0; }
+#user-name-display { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.main-content { flex-grow: 1; padding: 40px; overflow-y: auto; background-color: var(--bg-color); }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+.page-header h2 { font-size: 32px; margin: 0; }
+.theme-switch { display: inline-block; height: 24px; position: relative; width: 44px; }
+.theme-switch input { display:none; }
+.slider { background-color: #ccc; bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 24px; }
+.slider:before { background-color: #fff; bottom: 2px; content: ""; height: 20px; width: 20px; left: 2px; position: absolute; transition: .4s; border-radius: 50%; box-shadow: 0 0 2px rgba(0,0,0,0.4); }
+input:checked + .slider { background-color: var(--accent-color); }
+input:checked + .slider:before { transform: translateX(20px); }
+.content-page { display: none; animation: fadeIn 0.4s ease; }
+.content-page.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.info-card { background-color: var(--main-bg); border-radius: 12px; padding: 24px; box-shadow: 0 2px 4px var(--shadow-color); transition: background-color 0.3s, box-shadow 0.3s; }
+.info-card h3 { margin-top: 0; font-size: 18px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 15px; }
+.content-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+.list-item { padding: 12px 0; border-bottom: 1px solid var(--border-color); font-size: 15px; line-height: 1.5; }
+.list-item:last-child { border: none; }
+.list-item .title { font-weight: 500; }
+.list-item .sub { font-size: 13px; color: var(--text-secondary); }
+.rank-item { display: flex; align-items: center; }
+.rank-item .rank { font-weight: bold; width: 40px; text-align: center; }
+.rank-item .rank.rank-1 { color: var(--rank1-color); }
+.rank-item .rank.rank-2 { color: var(--rank2-color); }
+.rank-item .rank.rank-3 { color: var(--rank3-color); }
+.rank-item .name { flex-grow: 1; margin-left: 10px; }
+.rank-item .points { font-weight: 500; color: var(--text-secondary); }
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(5px); }
+.modal-overlay.show { display: flex; }
+.modal-dialog { background: var(--main-bg); padding: 30px 40px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2); text-align: center; width: 90%; max-width: 400px; }
+.modal-dialog h2 { margin-top: 0; }
+.modal-dialog p { color: var(--text-secondary); margin-bottom: 20px; }
+.modal-dialog select { width: 100%; padding: 12px; font-size: 16px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border-color); background-color: var(--bg-color); color: var(--text-primary); }
+.modal-dialog button { width: 100%; padding: 12px; font-size: 16px; font-weight: 500; border-radius: 8px; border: none; cursor: pointer; background-color: var(--accent-color); color: white; }
