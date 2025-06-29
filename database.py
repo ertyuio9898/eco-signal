@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime
 import pytz
 
-DB_NAME = "history.db"
+DB_NAME = "/tmp/history.db"
 
 def setup_database():
     try:
