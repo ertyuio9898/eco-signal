@@ -10,10 +10,8 @@ DB_NAME = "/tmp/history.db" if IS_VERCEL_ENV else "history.db"
 
 def get_db_connection():
     """데이터베이스 연결을 생성하고 반환하는 헬퍼 함수"""
-    # check_same_thread=False는 스레드 환경에서 안전하게 DB를 사용하기 위해 필요합니다.
     conn = sqlite3.connect(DB_NAME, check_same_thread=False)
-    # 딕셔너리 형태로 결과를 받기 위해 row_factory 설정 (컬럼 이름으로 데이터 접근 가능)
-    conn.row_factory = sqlite3.Row
+    conn.row_factory = sqlite3.Row # 딕셔너리 형태로 결과를 받기 위해 row_factory 설정
     return conn
 
 def setup_database():
@@ -27,6 +25,9 @@ def setup_database():
         cursor.execute("CREATE TABLE IF NOT EXISTS activities (id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, activity_type TEXT NOT NULL, points INTEGER NOT NULL, timestamp TEXT NOT NULL, FOREIGN KEY (user_id) REFERENCES users (id))")
         cursor.execute("CREATE TABLE IF NOT EXISTS achievements (id INTEGER PRIMARY KEY, badge_name TEXT UNIQUE NOT NULL, description TEXT NOT NULL, condition_type TEXT, condition_value INTEGER)")
         cursor.execute("CREATE TABLE IF NOT EXISTS user_achievements (id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, achievement_id INTEGER NOT NULL, achieved_at TEXT NOT NULL, UNIQUE(user_id, achievement_id), FOREIGN KEY (user_id) REFERENCES users (id), FOREIGN KEY (achievement_id) REFERENCES achievements (id))")
+        
+        # Notion 처리된 페이지 ID를 기록하는 테이블 (Vercel Cron Job용)
+        cursor.execute("CREATE TABLE IF NOT EXISTS processed_notion_pages (page_id TEXT PRIMARY KEY, processed_at TEXT NOT NULL)")
         
         # 초기 뱃지 데이터 추가 (INSERT OR IGNORE는 이미 존재하면 삽입 건너뜀)
         initial_badges = [
@@ -111,7 +112,6 @@ def get_monthly_ranking(limit=10):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        # 현재 월의 시작 날짜 (예: 2023-11-01)
         this_month_start = datetime.now(pytz.timezone('Asia/Seoul')).strftime('%Y-%m-01')
         cursor.execute("SELECT u.user_name, SUM(a.points) as total_points FROM activities a JOIN users u ON a.user_id = u.id WHERE a.timestamp >= ? GROUP BY u.user_name ORDER BY total_points DESC LIMIT ?", (this_month_start, limit))
         ranking_data = [dict(row) for row in cursor.fetchall()]
@@ -162,15 +162,28 @@ def get_recent_activities(limit=10):
         print(f"🚫 최근 활동 조회 중 오류: {e}")
         return []
 
-def get_all_users():
-    """DB에 저장된 모든 사용자 목록을 가져옵니다."""
+def add_processed_notion_page(page_id):
+    """Notion 페이지 ID를 처리된 목록에 추가합니다."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    # 테이블이 없으면 생성 (setup_database에서 이미 생성하지만, 혹시 몰라서 방어 코드)
+    cursor.execute("CREATE TABLE IF NOT EXISTS processed_notion_pages (page_id TEXT PRIMARY KEY, processed_at TEXT NOT NULL)")
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT user_name FROM users ORDER BY user_name")
-        users = [row['user_name'] for row in cursor.fetchall()]
+        cursor.execute("INSERT INTO processed_notion_pages (page_id, processed_at) VALUES (?, ?)", (page_id, datetime.now(pytz.timezone('Asia/Seoul')).isoformat()))
+        conn.commit()
+        print(f"✅ Notion Page '{page_id}' processed and logged.")
+    except sqlite3.IntegrityError: # page_id가 이미 존재할 경우 (중복 방지)
+        print(f"ℹ️ Notion Page '{page_id}' already processed.")
+    finally:
         conn.close()
-        return users
-    except Exception as e:
-        print(f"🚫 전체 사용자 목록 조회 중 오류: {e}")
-        return []
+
+def get_processed_notion_page_ids():
+    """처리된 Notion 페이지 ID 목록을 가져옵니다."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    # 테이블이 없으면 생성 (방어 코드)
+    cursor.execute("CREATE TABLE IF NOT EXISTS processed_notion_pages (page_id TEXT PRIMARY KEY, processed_at TEXT NOT NULL)")
+    cursor.execute("SELECT page_id FROM processed_notion_pages")
+    page_ids = {row['page_id'] for row in cursor.fetchall()}
+    conn.close()
+    return page_ids
