@@ -53,24 +53,34 @@
                     <div class="slider"></div>
                 </label>
             </div>
+            
             <div id="history" class="content-page active">
                 <div class="info-card">
-                    <h3>최근 활동 내역</h3>
-                    <div id="history-content"></div>
+                    <div class="card-header">
+                        <h3>최근 활동 내역</h3>
+                        <button class="refresh-btn" data-target="history" title="새로고침">🔄</button>
+                    </div>
+                    <div class="content" id="history-content"></div>
                 </div>
             </div>
             <div id="ranking" class="content-page">
                 <div class="info-card">
-                    <h3>TOP 5</h3>
-                    <div id="ranking-content"></div>
+                     <div class="card-header">
+                        <h3>TOP 5</h3>
+                        <button class="refresh-btn" data-target="ranking" title="새로고침">🔄</button>
+                    </div>
+                    <div class="content" id="ranking-content"></div>
                 </div>
             </div>
             <div id="badges" class="content-page">
+                 <div class="card-header standalone">
+                    <h3>나의 뱃지 컬렉션</h3>
+                    <button class="refresh-btn" data-target="badges" title="새로고침">🔄</button>
+                </div>
                 <div class="content-grid" id="badges-content"></div>
             </div>
         </main>
     </div>
-
     <script src="{{ url_for('static', filename='js/dashboard_main.js') }}"></script>
 </body>
 </html>

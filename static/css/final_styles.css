@@ -1,14 +1,11 @@
 /* --- 모든 스타일을 담은 final_styles.css --- */
 :root {
-    /* 라이트 모드 (기본) */
     --bg-color: #f7f7f7; --sidebar-bg: #ffffff; --main-bg: #ffffff; --text-primary: #1a1a1a; --text-secondary: #6b6b6b;
     --accent-color: #5856D6; --border-color: #e8e8e8; --hover-bg: #f0f0f5; --shadow-color: rgba(0, 0, 0, 0.05);
     --rank1-color: #D4AF37; --rank2-color: #A9A9A9; --rank3-color: #CD7F32;
-    /* 신호등용 색상 */
     --signal-green: #30D158; --signal-yellow: #FFD60A; --signal-orange: #FF9F0A;
 }
 body.dark-mode {
-    /* 다크 모드 */
     --bg-color: #1c1c1e; --sidebar-bg: #2c2c2e; --main-bg: #2c2c2e; --text-primary: #f5f5f7; --text-secondary: #a0a0a5;
     --accent-color: #6c63ff; --border-color: #3a3a3c; --hover-bg: #3a3a3c; --shadow-color: rgba(0, 0, 0, 0.2);
 }
@@ -17,15 +14,7 @@ body.dark-mode {
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background-color: var(--bg-color); color: var(--text-primary); margin: 0; transition: background-color 0.3s, color 0.3s; }
 
 /* === 전광판 페이지 스타일 === */
-.signal-page-wrapper {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: #ffffff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    text-align: center;
-}
+.signal-page-wrapper { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; display: flex; align-items: center; justify-content: center; height: 100vh; text-align: center; }
 .signal-page-wrapper .container { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 40px; }
 .score-panel h1 { font-size: 120px; font-weight: 700; margin: 0; line-height: 1; text-shadow: 0 0 20px rgba(0,0,0,0.2); }
 .score-panel p { font-size: 32px; font-weight: 400; margin: 10px 0 0 0; opacity: 0.8; }
@@ -65,7 +54,12 @@ input:checked + .slider:before { transform: translateX(20px); }
 .content-page.active { display: block; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 .info-card { background-color: var(--main-bg); border-radius: 12px; padding: 24px; box-shadow: 0 2px 4px var(--shadow-color); transition: background-color 0.3s, box-shadow 0.3s; }
-.info-card h3 { margin-top: 0; font-size: 18px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 15px; }
+.card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 15px; }
+.card-header.standalone { border: none; padding: 0 0 15px 0; margin-bottom: 0; }
+.card-header h3 { margin: 0; font-size: 18px; }
+.refresh-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-secondary); opacity: 0.6; transition: opacity 0.2s, transform 0.2s; padding: 5px; line-height: 1; }
+.refresh-btn:hover { opacity: 1; }
+.refresh-btn.loading { animation: spin 1s linear infinite; }
 .content-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
 .list-item { padding: 12px 0; border-bottom: 1px solid var(--border-color); font-size: 15px; line-height: 1.5; }
 .list-item:last-child { border: none; }
@@ -78,6 +72,14 @@ input:checked + .slider:before { transform: translateX(20px); }
 .rank-item .rank.rank-3 { color: var(--rank3-color); }
 .rank-item .name { flex-grow: 1; margin-left: 10px; }
 .rank-item .points { font-weight: 500; color: var(--text-secondary); }
+.content .loading-placeholder { padding: 12px 0; }
+.skeleton { background-color: var(--hover-bg); border-radius: 4px; animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.skeleton.title { height: 20px; width: 60%; margin-bottom: 8px; }
+.skeleton.sub { height: 14px; width: 40%; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+.spinner-container { display: flex; justify-content: center; align-items: center; padding: 40px; }
+.spinner { width: 32px; height: 32px; border: 4px solid var(--hover-bg); border-top-color: var(--accent-color); border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(5px); }
 .modal-overlay.show { display: flex; }
 .modal-dialog { background: var(--main-bg); padding: 30px 40px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2); text-align: center; width: 90%; max-width: 400px; }
