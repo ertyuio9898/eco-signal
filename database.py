@@ -1,4 +1,4 @@
-# --- database.py (Vercel 환경 지원 최종 완성 버전) ---
+# --- database.py (최종 완성 버전: Vercel 환경 지원, 모든 함수 포함) ---
 import sqlite3
 from datetime import datetime
 import pytz
@@ -10,8 +10,9 @@ DB_NAME = "/tmp/history.db" if IS_VERCEL_ENV else "history.db"
 
 def get_db_connection():
     """데이터베이스 연결을 생성하고 반환하는 헬퍼 함수"""
+    # check_same_thread=False는 스레드 환경에서 안전하게 DB를 사용하기 위해 필요합니다.
     conn = sqlite3.connect(DB_NAME, check_same_thread=False)
-    # 딕셔너리 형태로 결과를 받기 위해 row_factory 설정
+    # 딕셔너리 형태로 결과를 받기 위해 row_factory 설정 (컬럼 이름으로 데이터 접근 가능)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -20,12 +21,14 @@ def setup_database():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
+        
+        # 테이블 생성 (IF NOT EXISTS는 테이블이 없으면 생성, 있으면 건너뜀)
         cursor.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, user_name TEXT UNIQUE NOT NULL, first_seen TEXT NOT NULL)")
         cursor.execute("CREATE TABLE IF NOT EXISTS activities (id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, activity_type TEXT NOT NULL, points INTEGER NOT NULL, timestamp TEXT NOT NULL, FOREIGN KEY (user_id) REFERENCES users (id))")
         cursor.execute("CREATE TABLE IF NOT EXISTS achievements (id INTEGER PRIMARY KEY, badge_name TEXT UNIQUE NOT NULL, description TEXT NOT NULL, condition_type TEXT, condition_value INTEGER)")
         cursor.execute("CREATE TABLE IF NOT EXISTS user_achievements (id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, achievement_id INTEGER NOT NULL, achieved_at TEXT NOT NULL, UNIQUE(user_id, achievement_id), FOREIGN KEY (user_id) REFERENCES users (id), FOREIGN KEY (achievement_id) REFERENCES achievements (id))")
         
-        # 초기 뱃지 데이터 추가
+        # 초기 뱃지 데이터 추가 (INSERT OR IGNORE는 이미 존재하면 삽입 건너뜀)
         initial_badges = [
             ('첫걸음', '첫 환경보호 활동 인증', 'count_all', 1),
             ('텀블러 홀릭', '텀블러 사용 3회 달성', 'count_tumbler', 3),
@@ -88,12 +91,12 @@ def check_and_award_achievements(user_id, user_name):
                 if condition_type == 'count_all':
                     cursor.execute("SELECT COUNT(id) FROM activities WHERE user_id = ?", (user_id,));
                     count = cursor.fetchone()[0]
-                    if count >= condition_value: is_achieved = True
+                    is_achieved = (count >= condition_value)
                 elif condition_type.startswith('count_'):
                     activity_name = condition_type.split('_')[1]
                     cursor.execute("SELECT COUNT(id) FROM activities WHERE user_id = ? AND activity_type = ?", (user_id, activity_name));
                     count = cursor.fetchone()[0]
-                    if count >= condition_value: is_achieved = True
+                    is_achieved = (count >= condition_value)
                 
                 if is_achieved:
                     cursor.execute("INSERT INTO user_achievements (user_id, achievement_id, achieved_at) VALUES (?, ?, ?)",(user_id, achievement['id'], datetime.now(pytz.timezone('Asia/Seoul')).isoformat()))
@@ -108,11 +111,12 @@ def get_monthly_ranking(limit=10):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
+        # 현재 월의 시작 날짜 (예: 2023-11-01)
         this_month_start = datetime.now(pytz.timezone('Asia/Seoul')).strftime('%Y-%m-01')
         cursor.execute("SELECT u.user_name, SUM(a.points) as total_points FROM activities a JOIN users u ON a.user_id = u.id WHERE a.timestamp >= ? GROUP BY u.user_name ORDER BY total_points DESC LIMIT ?", (this_month_start, limit))
         ranking_data = [dict(row) for row in cursor.fetchall()]
         for i, user in enumerate(ranking_data):
-            user['rank'] = i + 1
+            user['rank'] = i + 1 # 1부터 시작하는 랭크 부여
         conn.close()
         return ranking_data
     except Exception as e:
