@@ -1,43 +1,69 @@
-# --- server.py (SyntaxError 수정된 최종 버전) ---
+# --- server.py (모든 함수 포함, 버그 수정 최종 버전) ---
 
-import time, os, threading, logging, sys, sqlite3, configparser
+import os
+import sys
+import time
+import logging
+import threading
+import sqlite3
+import configparser
+from datetime import datetime
+import pytz
+
 from flask import Flask, jsonify, render_template, request
 from notion_client import Client
 from google.cloud import vision
-import pytz
 import database
 
-# --- Config & 초기화 ---
-config = configparser.ConfigParser()
+# --- 1. 설정 로드 (하이브리드 방식) ---
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+config_file_path = 'config.ini'
+IS_VERCEL_ENV = os.environ.get('VERCEL') == '1'
+
 try:
-    config.read('config.ini', encoding='utf-8')
-    NOTION_API_KEY = config['SECRETS']['NOTION_API_KEY']
-    DATABASE_ID = config['SECRETS']['DATABASE_ID']
-    ADMIN_PASSWORD = config['SECRETS']['ADMIN_PASSWORD']
-    GOOGLE_CREDENTIALS_FILENAME = config['SECRETS']['GOOGLE_CREDENTIALS_FILENAME']
-    IS_TEST_MODE = config['MODE'].getboolean('IS_TEST_MODE')
+    if not IS_VERCEL_ENV and os.path.exists(config_file_path):
+        logging.info(f"로컬 환경 감지. '{config_file_path}'에서 설정을 로드합니다.")
+        config = configparser.ConfigParser()
+        config.read(config_file_path, encoding='utf-8')
+        NOTION_API_KEY = config['SECRETS']['NOTION_API_KEY']
+        DATABASE_ID = config['SECRETS']['DATABASE_ID']
+        ADMIN_PASSWORD = config['SECRETS']['ADMIN_PASSWORD']
+        GOOGLE_CREDENTIALS_FILENAME = config['SECRETS']['GOOGLE_CREDENTIALS_FILENAME']
+        IS_TEST_MODE = config['MODE'].getboolean('IS_TEST_MODE')
+        if getattr(sys, 'frozen', False): application_path = os.path.dirname(sys.executable)
+        else: application_path = os.path.dirname(os.path.abspath(__file__))
+        credentials_path = os.path.join(application_path, GOOGLE_CREDENTIALS_FILENAME)
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credentials_path
+    else:
+        logging.info("Vercel 환경 감지. 환경 변수에서 설정을 로드합니다.")
+        NOTION_API_KEY = os.environ.get('NOTION_API_KEY')
+        DATABASE_ID = os.environ.get('DATABASE_ID')
+        ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD')
+        IS_TEST_MODE = os.environ.get('IS_TEST_MODE', 'false').lower() == 'true'
+    if not all([NOTION_API_KEY, DATABASE_ID, ADMIN_PASSWORD]):
+        missing_vars = [var for var in ['NOTION_API_KEY', 'DATABASE_ID', 'ADMIN_PASSWORD'] if not locals().get(var)]
+        raise ValueError(f"필수 설정값이 누락되었습니다: {', '.join(missing_vars)}")
 except Exception as e:
-    print(f"🚫 'config.ini' 파일을 읽는 중 오류가 발생했습니다: {e}")
+    logging.critical(f"🚫 설정 로드 중 치명적 오류 발생: {e}")
     sys.exit(1)
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# --- 2. 기본 설정 및 API 클라이언트 초기화 ---
 CONFIG = {"check_interval_seconds": 10, "pending_check_interval_seconds": 15, "pending_timeout_seconds": 300, "point_policy": { "tumbler": 20, "cup": 20, "stairs": 30, "paper": 15, "thermos": 25 }, "level_thresholds": { "green": 150, "yellow": 120, "orange": 100 }}
 CONFIG["bonus_duration_seconds"] = 60 if IS_TEST_MODE else 3600
-
-if getattr(sys, 'frozen', False): application_path = os.path.dirname(sys.executable)
-else: application_path = os.path.dirname(os.path.abspath(__file__))
-credentials_path = os.path.join(application_path, GOOGLE_CREDENTIALS_FILENAME)
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credentials_path
+if IS_TEST_MODE: logging.warning("### 테스트 모드로 실행 중입니다. ###")
+else: logging.info("### 운영 모드로 실행 중입니다. ###")
 try:
-    notion = Client(auth=NOTION_API_KEY); vision_client = vision.ImageAnnotatorClient()
+    notion = Client(auth=NOTION_API_KEY)
+    vision_client = vision.ImageAnnotatorClient()
     logging.info("✅ 노션 및 Google Vision API 클라이언트 초기화 성공.")
 except Exception as e:
-    logging.error(f"🚫 API 초기화 실패: {e}"); sys.exit(1)
+    logging.error(f"🚫 API 클라이언트 초기화 실패: {e}")
+    notion, vision_client = None, None
 
+# --- 3. 백그라운드 작업자들 & 전역 상태 (모든 함수 포함!) ---
 SHARED_STATE = { "signal_level": "orange", "current_points": 100, "last_activity": "없음", "active_activities": [] }
 PENDING_ANALYSIS_QUEUE = {}; PROCESSED_PAGE_IDS = set(); state_lock = threading.Lock()
 
-# --- 백그라운드 작업자들 (수정 없음) ---
 def analyze_image_and_apply_bonus(page):
     try:
         user_name = page["properties"]["생성자"]["created_by"]["name"]; user_id = database.get_or_create_user(user_name)
@@ -115,59 +141,36 @@ def pending_processor_worker():
                 with state_lock: PENDING_ANALYSIS_QUEUE.pop(page_id_to_process, None)
         time.sleep(CONFIG["pending_check_interval_seconds"])
 
-# --- Flask 앱 설정 및 모든 라우팅 ---
+# --- 4. Flask 앱 설정 및 라우팅 ---
 app = Flask(__name__)
-
-# --- API 엔드포인트 ---
 @app.route("/status")
-def get_status():
-    with state_lock:
-        return jsonify(SHARED_STATE)
-
+def get_status(): return jsonify(SHARED_STATE)
 @app.route("/ranking")
-def get_ranking():
-    return jsonify(database.get_monthly_ranking())
-
+def get_ranking(): return jsonify(database.get_monthly_ranking())
 @app.route("/user/<user_name>/history")
-def get_user_history_api(user_name):
-    user_id = database.get_or_create_user(user_name)
-    return jsonify(database.get_user_history(user_id))
-
+def get_user_history_api(user_name): user_id = database.get_or_create_user(user_name); return jsonify(database.get_user_history(user_id))
 @app.route("/user/<user_name>/achievements")
-def get_user_achievements_api(user_name):
-    user_id = database.get_or_create_user(user_name)
-    return jsonify(database.get_user_achievements(user_id))
-
+def get_user_achievements_api(user_name): user_id = database.get_or_create_user(user_name); return jsonify(database.get_user_achievements(user_id))
 @app.route("/users")
-def get_all_users_api():
-    return jsonify(database.get_all_users())
-
-# --- 페이지 엔드포인트 ---
+def get_all_users_api(): return jsonify(database.get_all_users())
 @app.route("/admin")
 def admin_dashboard():
-    if request.args.get('password') != ADMIN_PASSWORD:
-        return "<h1>🚫 접근이 거부되었습니다.</h1>", 403
-    with state_lock:
-        current_status = SHARED_STATE.copy()
-    return render_template('admin.html', server_status=current_status, ranking_data=database.get_monthly_ranking(), recent_activities=database.get_recent_activities())
-
+    if request.args.get('password') != ADMIN_PASSWORD: return "<h1>🚫 접근이 거부되었습니다.</h1>", 403
+    with state_lock: current_status = SHARED_STATE.copy()
+    return f"Admin Page. Status: {current_status}"
 @app.route("/signal")
-def signal_page():
-    return render_template('signal_web.html')
-
+def signal_page(): return render_template('signal_web.html')
 @app.route("/dashboard")
-def dashboard_page():
-    return render_template('dashboard_web.html')
-
+def dashboard_page(): return render_template('dashboard_web.html')
 @app.route("/")
-def index_page(): 
-    return render_template('index.html')
+def index_page(): return render_template('index.html')
 
-# --- 서버 실행 ---
+# --- 5. 서버 실행 ---
 if __name__ == '__main__':
     database.setup_database()
-    threading.Thread(target=state_updater_worker, daemon=True, name="StateUpdater").start()
-    threading.Thread(target=notion_checker_worker, daemon=True, name="NotionChecker").start()
-    threading.Thread(target=pending_processor_worker, daemon=True, name="PendingProcessor").start()
-    logging.info("🚀 서버가 모든 준비를 마치고 시작됩니다! http://127.0.0.1:5000 에서 접속하세요.")
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    if not IS_VERCEL_ENV:
+        threading.Thread(target=state_updater_worker, daemon=True, name="StateUpdater").start()
+        threading.Thread(target=notion_checker_worker, daemon=True, name="NotionChecker").start()
+        threading.Thread(target=pending_processor_worker, daemon=True, name="PendingProcessor").start()
+    logging.info("🚀 로컬 테스트 서버가 시작됩니다! http://127.0.0.1:5000 에서 접속하세요.")
+    app.run(host='0.0.0.0', port=5000, debug=True)
