@@ -1,4 +1,4 @@
-# --- server.py (동시성 문제 해결 최종 완성 버전) ---
+# --- server.py (SyntaxError 완벽 수정, 로컬/Vercel 완벽 지원 최종본) ---
 
 import os
 import sys
@@ -19,7 +19,6 @@ import database
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 config_file_path = 'config.ini'
 IS_VERCEL_ENV = os.environ.get('VERCEL') == '1'
-
 try:
     if not IS_VERCEL_ENV and os.path.exists(config_file_path):
         logging.info(f"로컬 환경 감지. '{config_file_path}'에서 설정을 로드합니다.")
@@ -44,24 +43,21 @@ try:
         missing_vars = [var for var in ['NOTION_API_KEY', 'DATABASE_ID', 'ADMIN_PASSWORD'] if not locals().get(var)]
         raise ValueError(f"필수 설정값이 누락되었습니다: {', '.join(missing_vars)}")
 except Exception as e:
-    logging.critical(f"🚫 설정 로드 중 치명적 오류 발생: {e}")
-    sys.exit(1)
+    logging.critical(f"🚫 설정 로드 중 치명적 오류 발생: {e}"); sys.exit(1)
 
 # --- 2. 기본 설정 및 API 클라이언트 초기화 ---
-CONFIG = {"check_interval_seconds": 10, "pending_check_interval_seconds": 15, "pending_timeout_seconds": 300, "point_policy": { "tumbler": 20, "cup": 20, "stairs": 30, "paper": 15, "thermos": 25 }, "level_thresholds": { "green": 150, "yellow": 120, "orange": 100 }}
+CONFIG = {"point_policy": { "tumbler": 20, "cup": 20, "stairs": 30, "paper": 15, "thermos": 25 }, "level_thresholds": { "green": 150, "yellow": 120, "orange": 100 }}
 CONFIG["bonus_duration_seconds"] = 60 if IS_TEST_MODE else 3600
 if IS_TEST_MODE: logging.warning("### 테스트 모드로 실행 중입니다. ###")
 else: logging.info("### 운영 모드로 실행 중입니다. ###")
 try:
-    notion = Client(auth=NOTION_API_KEY)
-    vision_client = vision.ImageAnnotatorClient()
+    notion = Client(auth=NOTION_API_KEY); vision_client = vision.ImageAnnotatorClient()
     logging.info("✅ 노션 및 Google Vision API 클라이언트 초기화 성공.")
 except Exception as e:
-    logging.error(f"🚫 API 클라이언트 초기화 실패: {e}")
-    notion, vision_client = None, None
+    logging.error(f"🚫 API 클라이언트 초기화 실패: {e}"); notion, vision_client = None, None
 
 # --- 3. 전역 상태 변수 및 Lock ---
-SHARED_STATE = { "signal_level": "orange", "current_points": 100, "last_activity": "없음", "active_activities": [] }
+SHARED_STATE = { "signal_level": "orange", "current_points": 100, "last_activity": "없음" }
 state_lock = threading.Lock() 
 
 # --- 4. 핵심 로직 함수들 ---
@@ -74,14 +70,13 @@ def analyze_image_and_apply_bonus(page):
         detected_tags = [label.description.lower() for label in response.label_annotations]
         applied_bonus = 0; applied_activity = "기타 활동"
         for tag, points in CONFIG["point_policy"].items():
-            if tag in detected_tags and points > applied_bonus:
-                applied_bonus = points; applied_activity = tag
+            if tag in detected_tags and points > applied_bonus: applied_bonus = points; applied_activity = tag
         if applied_bonus > 0:
-            with state_lock:
-                SHARED_STATE["active_activities"].append({"activity": applied_activity, "points": applied_bonus, "end_time": time.time() + CONFIG["bonus_duration_seconds"]})
-            logging.info(f"🎯 활동 '{applied_activity}' 추가! (+{applied_bonus}점)")
             database.add_activity_log(user_id, applied_activity, applied_bonus)
-            threading.Thread(target=database.check_and_award_achievements, args=(user_id, user_name), daemon=True).start()
+            if not IS_VERCEL_ENV:
+                threading.Thread(target=database.check_and_award_achievements, args=(user_id, user_name), daemon=True).start()
+            else:
+                database.check_and_award_achievements(user_id, user_name)
     except Exception as e: logging.error(f"🚫 AI 분석/DB/뱃지 확인 중 오류: {e}")
 
 def process_page(page_id, source="신규"):
@@ -90,41 +85,34 @@ def process_page(page_id, source="신규"):
         page_data = notion.pages.retrieve(page_id=page_id)
         files_property = page_data["properties"].get("파일과 미디어", {}).get("files", [])
         if files_property and files_property[0].get("file"):
-            analyze_image_and_apply_bonus(page_data)
-            return True
+            analyze_image_and_apply_bonus(page_data); return True
         else:
-            logging.warning(f"⚠️ 페이지 '{page_id}'에 아직 사진이 없습니다. 보류합니다.")
-            return False
+            logging.warning(f"⚠️ 페이지 '{page_id}'에 아직 사진이 없습니다. 보류합니다."); return False
     except Exception as e:
-        logging.error(f"🚫 페이지 '{page_id}' 처리 중 오류: {e}")
-        return None
+        logging.error(f"🚫 페이지 '{page_id}' 처리 중 오류: {e}"); return None
 
 def update_shared_state():
     with state_lock:
-        SHARED_STATE["active_activities"][:] = [act for act in SHARED_STATE["active_activities"] if act["end_time"] >= time.time()]
-        total_points = 100 + sum(act["points"] for act in SHARED_STATE["active_activities"])
+        all_activities = database.get_recent_activities(limit=100)
+        current_time = time.time()
+        active_bonuses = [act for act in all_activities if (current_time - datetime.fromisoformat(act['timestamp']).timestamp()) < CONFIG["bonus_duration_seconds"]]
+        total_points = 100 + sum(act["points"] for act in active_bonuses)
         SHARED_STATE["current_points"] = total_points
-        SHARED_STATE["last_activity"] = SHARED_STATE["active_activities"][-1]["activity"] if SHARED_STATE["active_activities"] else "없음"
+        SHARED_STATE["last_activity"] = active_bonuses[0]["activity_type"] if active_bonuses else "없음"
         level = "orange"
         if total_points >= CONFIG["level_thresholds"]["green"]: level = "green"
         elif total_points >= CONFIG["level_thresholds"]["yellow"]: level = "yellow"
         SHARED_STATE["signal_level"] = level
     logging.info("✅ 실시간 상태 업데이트 완료.")
 
-def check_notion_now():
-    logging.info("✨ 노션 새 글 확인 작업 시작...")
-    processed_count = 0
+def check_notion_once():
     pending_pages = database.get_pending_pages()
     if pending_pages:
         logging.info(f"⏳ 보류 중인 페이지 {len(pending_pages)}개를 먼저 확인합니다.")
         for page_id in pending_pages:
             result = process_page(page_id, source="보류")
-            if result is True:
-                database.remove_from_pending(page_id)
-                database.add_processed_page_id(page_id)
-                processed_count += 1
-            elif result is None:
-                database.remove_from_pending(page_id)
+            if result is True: database.remove_from_pending(page_id); database.add_processed_page_id(page_id)
+            elif result is None: database.remove_from_pending(page_id)
     logging.info("🔍 노션에서 새로운 글을 확인합니다.")
     try:
         results = notion.databases.query(database_id=DATABASE_ID, sorts=[{"property": "생성 일시", "direction": "descending"}], page_size=20).get("results")
@@ -135,41 +123,68 @@ def check_notion_now():
             logging.info(f"✨ {len(new_pages)}개의 새로운 글 발견!")
             for page in new_pages:
                 result = process_page(page["id"], source="신규")
-                if result is True:
-                    database.add_processed_page_id(page["id"])
-                    processed_count += 1
-                elif result is False:
-                    database.add_to_pending(page["id"])
+                if result is True: database.add_processed_page_id(page["id"])
+                elif result is False: database.add_to_pending(page["id"])
+    except Exception as e: logging.error(f"🚫 노션 확인 중 오류: {e}")
+
+def background_worker():
+    logging.info("⚙️ [백그라운드 직원] 근무 시작.");
+    while True:
+        check_notion_once()
         update_shared_state()
-        return f"총 {processed_count}개 글 처리 완료."
-    except Exception as e:
-        logging.error(f"🚫 노션 확인 중 오류: {e}")
-        return f"오류 발생: {e}", 500
+        time.sleep(15)
 
 # --- 5. Flask 앱 설정 및 라우팅 ---
 app = Flask(__name__)
+
 @app.route("/status")
-def get_status(): update_shared_state(); return jsonify(SHARED_STATE)
+def get_status():
+    update_shared_state()
+    with state_lock:
+        return jsonify(SHARED_STATE)
+
 @app.route("/api/check-notion")
 def trigger_notion_check():
-    if request.args.get('password') != ADMIN_PASSWORD: return "<h1>🚫 접근이 거부되었습니다.</h1>", 403
-    result_message = check_notion_now(); return f"<h1>작업 완료</h1><p>{result_message}</p>"
+    if request.args.get('password') != ADMIN_PASSWORD:
+        return "<h1>🚫 접근이 거부되었습니다.</h1>", 403
+    check_notion_once()
+    update_shared_state()
+    return f"<h1>작업 완료</h1><p>노션 확인 및 상태 업데이트가 완료되었습니다.</p>"
+
 @app.route("/ranking")
-def get_ranking(): return jsonify(database.get_monthly_ranking())
+def get_ranking():
+    return jsonify(database.get_monthly_ranking())
+
 @app.route("/user/<user_name>/history")
-def get_user_history_api(user_name): user_id = database.get_or_create_user(user_name); return jsonify(database.get_user_history(user_id))
+def get_user_history_api(user_name):
+    user_id = database.get_or_create_user(user_name)
+    return jsonify(database.get_user_history(user_id))
+
 @app.route("/user/<user_name>/achievements")
-def get_user_achievements_api(user_name): user_id = database.get_or_create_user(user_name); return jsonify(database.get_user_achievements(user_id))
+def get_user_achievements_api(user_name):
+    user_id = database.get_or_create_user(user_name)
+    return jsonify(database.get_user_achievements(user_id))
+
 @app.route("/users")
-def get_all_users_api(): return jsonify(database.get_all_users())
+def get_all_users_api():
+    return jsonify(database.get_all_users())
+
 @app.route("/signal")
-def signal_page(): return render_template('signal_web.html')
+def signal_page():
+    return render_template('signal_web.html')
+
 @app.route("/dashboard")
-def dashboard_page(): return render_template('dashboard_web.html')
+def dashboard_page():
+    return render_template('dashboard_web.html')
+
 @app.route("/")
-def index_page(): return render_template('index.html')
+def index_page():
+    return render_template('index.html')
 
 if __name__ == '__main__':
     database.setup_database()
+    if not IS_VERCEL_ENV:
+        worker_thread = threading.Thread(target=background_worker, daemon=True)
+        worker_thread.start()
     logging.info("🚀 로컬 테스트 서버가 시작됩니다! http://127.0.0.1:5000 에서 접속하세요.")
     app.run(host='0.0.0.0', port=5000, debug=True)

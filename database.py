@@ -1,8 +1,7 @@
-# --- database.py (동시성 문제 해결 지원 최종 완성 버전) ---
-import sqlite3
+# --- database.py (최종 완성 버전) ---
+import sqlite3, os
 from datetime import datetime
 import pytz
-import os
 
 IS_VERCEL_ENV = os.environ.get('VERCEL') == '1'
 DB_NAME = "/tmp/history.db" if IS_VERCEL_ENV else "history.db"
@@ -83,6 +82,12 @@ def get_user_achievements(user_id):
         conn = get_db_connection(); cursor = conn.cursor()
         cursor.execute("SELECT ac.badge_name, ac.description, ua.achieved_at FROM user_achievements ua JOIN achievements ac ON ua.achievement_id = ac.id WHERE ua.user_id = ? ORDER BY ua.achieved_at DESC", (user_id,)); badges_data = [dict(row) for row in cursor.fetchall()]; conn.close(); return badges_data
     except Exception as e: print(f"🚫 사용자 뱃지 목록 조회 중 오류: {e}"); return []
+
+def get_recent_activities(limit=100):
+    try:
+        conn = get_db_connection(); cursor = conn.cursor()
+        cursor.execute("SELECT a.timestamp, u.user_name, a.activity_type, a.points FROM activities a JOIN users u ON a.user_id = u.id ORDER BY a.id DESC LIMIT ?", (limit,)); activities = [dict(row) for row in cursor.fetchall()]; conn.close(); return activities
+    except Exception as e: print(f"🚫 최근 활동 조회 중 오류: {e}"); return []
 
 def get_all_users():
     try:

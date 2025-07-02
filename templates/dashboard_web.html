@@ -13,22 +13,18 @@
         <symbol id="icon-history" viewBox="0 0 24 24"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6a7 7 0 0 1 7-7 7 7 0 0 1 7 7 7 7 0 0 1-7 7v2a9 9 0 0 0 9-9 9 9 0 0 0-9-9zm-1 5v5l4.25 2.52.75-1.23-3.5-2.07V8H12z"/></symbol>
         <symbol id="icon-ranking" viewBox="0 0 24 24"><path d="M10 20h4V4h-4v16zm-6 0h4v-8H4v8zM16 9v11h4V9h-4z"/></symbol>
         <symbol id="icon-badge" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></symbol>
+        <symbol id="icon-refresh" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></symbol>
       </defs>
     </svg>
-
     <!-- 사용자 선택 모달 -->
     <div id="user-selection-modal" class="modal-overlay">
         <div class="modal-dialog">
-            <h2>사용자 선택</h2>
-            <p>대시보드를 볼 사용자를 선택하세요.</p>
+            <h2>사용자 선택</h2><p>대시보드를 볼 사용자를 선택하세요.</p>
             <select id="user-list-select"></select>
             <button id="confirm-user-btn">확 인</button>
         </div>
     </div>
-    
-    <!-- 모바일 사이드바용 오버레이 -->
     <div id="sidebar-overlay" class="sidebar-overlay"></div>
-
     <div class="dashboard-layout">
         <!-- 왼쪽 사이드바 -->
         <aside class="sidebar" id="sidebar">
@@ -38,54 +34,27 @@
                 <li class="nav-item"><a href="#ranking" class="nav-link"><svg class="icon"><use xlink:href="#icon-ranking"/></svg><span>이달의 랭킹</span></a></li>
                 <li class="nav-item"><a href="#badges" class="nav-link"><svg class="icon"><use xlink:href="#icon-badge"/></svg><span>나의 뱃지</span></a></li>
             </ul>
-            <div class="sidebar-footer">
-                <div class="user-profile" id="user-profile-btn">
-                    <div class="avatar" id="user-avatar"></div>
-                    <span id="user-name-display"></span>
-                </div>
-            </div>
+            <div class="sidebar-footer"><div class="user-profile" id="user-profile-btn"><div class="avatar" id="user-avatar"></div><span id="user-name-display"></span></div></div>
         </aside>
-
         <!-- 오른쪽 메인 콘텐츠 -->
         <main class="main-content">
             <div class="page-header">
-                <button class="hamburger-btn" id="hamburger-btn">
-                    <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"></path></svg>
-                </button>
+                <button class="hamburger-btn" id="hamburger-btn"><svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"></path></svg></button>
                 <h2 id="page-title"></h2>
-                <label class="theme-switch" for="checkbox">
-                    <input type="checkbox" id="checkbox" />
-                    <div class="slider"></div>
-                </label>
+                <label class="theme-switch" for="checkbox"><input type="checkbox" id="checkbox" /><div class="slider"></div></label>
             </div>
-            
             <div id="history" class="content-page active">
-                <div class="info-card">
-                    <div class="card-header">
-                        <h3>최근 활동 내역</h3>
-                        <button class="refresh-btn" data-target="history" title="새로고침">🔄</button>
-                    </div>
-                    <div id="history-content"></div>
-                </div>
+                <div class="info-card"><div class="card-header"><h3>최근 활동 내역</h3><button class="refresh-btn" data-target="history" title="새로고침"><svg class="icon"><use xlink:href="#icon-refresh"/></svg></button></div><div id="history-content"></div></div>
             </div>
             <div id="ranking" class="content-page">
-                <div class="info-card">
-                     <div class="card-header">
-                        <h3>TOP 5</h3>
-                        <button class="refresh-btn" data-target="ranking" title="새로고침">🔄</button>
-                    </div>
-                    <div id="ranking-content"></div>
-                </div>
+                <div class="info-card"><div class="card-header"><h3>TOP 5</h3><button class="refresh-btn" data-target="ranking" title="새로고침"><svg class="icon"><use xlink:href="#icon-refresh"/></svg></button></div><div id="ranking-content"></div></div>
             </div>
             <div id="badges" class="content-page">
-                 <div class="card-header standalone">
-                    <h3>나의 뱃지 컬렉션</h3>
-                    <button class="refresh-btn" data-target="badges" title="새로고침">🔄</button>
-                </div>
+                 <div class="card-header standalone"><h3>나의 뱃지 컬렉션</h3><button class="refresh-btn" data-target="badges" title="새로고침"><svg class="icon"><use xlink:href="#icon-refresh"/></svg></button></div>
                 <div class="content-grid" id="badges-content"></div>
             </div>
         </main>
     </div>
     <script src="{{ url_for('static', filename='js/dashboard_main.js') }}"></script>
 </body>
-</html>
+</html>s
