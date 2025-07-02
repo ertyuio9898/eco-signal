@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>개인 대시보드</title>
-    <!-- CSS 파일은 final_styles.css 하나만 사용합니다. -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/final_styles.css') }}">
 </head>
 <body>
@@ -26,10 +25,13 @@
             <button id="confirm-user-btn">확 인</button>
         </div>
     </div>
+    
+    <!-- 모바일 사이드바용 오버레이 -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
 
     <div class="dashboard-layout">
         <!-- 왼쪽 사이드바 -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <div class="sidebar-header"><h1>ECO Dashboard</h1><p>실시간 환경 대시보드</p></div>
             <ul class="nav-menu">
                 <li class="nav-item"><a href="#history" class="nav-link active"><svg class="icon"><use xlink:href="#icon-history"/></svg><span>나의 활동</span></a></li>
@@ -47,6 +49,9 @@
         <!-- 오른쪽 메인 콘텐츠 -->
         <main class="main-content">
             <div class="page-header">
+                <button class="hamburger-btn" id="hamburger-btn">
+                    <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"></path></svg>
+                </button>
                 <h2 id="page-title"></h2>
                 <label class="theme-switch" for="checkbox">
                     <input type="checkbox" id="checkbox" />
@@ -60,7 +65,7 @@
                         <h3>최근 활동 내역</h3>
                         <button class="refresh-btn" data-target="history" title="새로고침">🔄</button>
                     </div>
-                    <div class="content" id="history-content"></div>
+                    <div id="history-content"></div>
                 </div>
             </div>
             <div id="ranking" class="content-page">
@@ -69,7 +74,7 @@
                         <h3>TOP 5</h3>
                         <button class="refresh-btn" data-target="ranking" title="새로고침">🔄</button>
                     </div>
-                    <div class="content" id="ranking-content"></div>
+                    <div id="ranking-content"></div>
                 </div>
             </div>
             <div id="badges" class="content-page">
