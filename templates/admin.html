@@ -1,0 +1,53 @@
+<!-- templates/admin.html (Final Version) -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>관리자 대시보드</title>
+    <style>
+        body { font-family: '맑은 고딕', sans-serif; background-color: #f8f9fa; color: #212529; margin: 0; padding: 30px; }
+        .container { max-width: 1200px; margin: auto; } .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        .card { background-color: #ffffff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h1 { border-bottom: 2px solid #dee2e6; padding-bottom: 10px; margin-bottom: 30px; }
+        h2 { color: #495057; border-left: 4px solid #0d6efd; padding-left: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6; }
+        th { background-color: #f1f3f5; }
+        pre { background-color: #e9ecef; padding: 15px; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; font-size: 13px; max-height: 400px; overflow-y: auto;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚙️ 관리자 대시보드</h1>
+        <div class="grid">
+            <div class="card">
+                <h2>📊 현재 서버 상태 (실시간)</h2>
+                <pre>{{ server_status | tojson(indent=2) }}</pre>
+            </div>
+            <div class="card">
+                <h2>🏆 이달의 랭킹</h2>
+                <table>
+                    <tr><th>순위</th><th>이름</th><th>총점</th></tr>
+                    {% for user in ranking_data %}
+                    <tr> <td>{{ user.rank }}</td> <td>{{ user.user_name }}</td> <td>{{ user.total_points }}</td> </tr>
+                    {% else %} <tr><td colspan="3">랭킹 데이터가 없습니다.</td></tr> {% endfor %}
+                </table>
+            </div>
+            <div class="card" style="grid-column: 1 / -1;">
+                <h2>📝 최근 활동 기록 (최신 10건)</h2>
+                <table>
+                    <tr><th>시간</th><th>사용자</th><th>활동</th><th>획득 점수</th></tr>
+                    {% for activity in recent_activities %}
+                    <tr>
+                        <td>{{ activity.timestamp |- truncate(16, True, '') | replace('T', ' ') }}</td>
+                        <td>{{ activity.user_name }}</td>
+                        <td>{{ activity.activity_type }}</td>
+                        <td>+{{ activity.points }}</td>
+                    </tr>
+                    {% else %} <tr><td colspan="4">최근 활동 기록이 없습니다.</td></tr> {% endfor %}
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
